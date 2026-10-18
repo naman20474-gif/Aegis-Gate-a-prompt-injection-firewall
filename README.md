@@ -77,7 +77,7 @@ There is one reproducible project test command:
 make test
 ```
 
-It runs the 79 offline backend tests and the frontend TypeScript check. The benchmark is a separate deterministic regression command:
+It runs the 82 offline backend tests and the frontend TypeScript check. The benchmark is a separate deterministic regression command:
 
 ```bash
 make benchmark
