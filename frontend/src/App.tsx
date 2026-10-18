@@ -1044,10 +1044,84 @@ function CommandDialog({ query, setQuery, actions, inputRef, onClose }: { query:
   return <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.16 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><motion.div className="command-dialog" role="dialog" aria-modal="true" aria-label="Command bar" initial={{ opacity: 0, y: -12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.98 }} transition={{ duration: reduceMotion ? 0 : 0.16 }}><div className="command-search"><Search size={18} aria-hidden="true" /><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search actions…" onKeyDown={(event) => { if (event.key === 'Escape') onClose(); if (event.key === 'Enter' && actions[0]) actions[0].run(); }} /><kbd>ESC</kbd></div><div className="command-list">{actions.length === 0 ? <EmptyState label="No matching actions" /> : actions.map(({ id, label, detail, icon: Icon, run }) => <button type="button" className="command-item" key={id} onClick={run}><span className="command-icon"><Icon size={16} aria-hidden="true" /></span><span><strong>{label}</strong><small>{detail}</small></span><ChevronRight size={14} aria-hidden="true" /></button>)}</div><div className="command-footer"><span><kbd>↵</kbd> run action</span><span><kbd>ESC</kbd> close</span></div></motion.div></motion.div>;
 }
 
+function parseJsonValue(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function payloadRecord(data: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = parseJsonValue(data[key]);
+  return isRecord(value) ? value : {};
+}
+
+function highlightedText(data: Record<string, unknown>): { text: string; signals: Array<Record<string, unknown>> } {
+  const payload = payloadRecord(data, 'payload');
+  const normalized = payloadRecord(payload, 'normalized');
+  const text = typeof normalized.text === 'string'
+    ? normalized.text
+    : typeof payload.text === 'string'
+      ? payload.text
+      : typeof payload.content === 'string'
+        ? payload.content
+        : '';
+  const signalsValue = Array.isArray(payload.signals) ? payload.signals : [];
+  return { text, signals: signalsValue.filter(isRecord) };
+}
+
+function HighlightedContent({ text, signals }: { text: string; signals: Array<Record<string, unknown>> }) {
+  if (!text) return <EmptyState label="No original content captured" detail="This audit record stores metadata without a renderable text span." />;
+  const ranges = signals
+    .map((signal) => {
+      const span = Array.isArray(signal.span) ? signal.span : [];
+      const start = Number(signal.span_start ?? span[0] ?? 0);
+      const end = Number(signal.span_end ?? span[1] ?? start);
+      return { start: Math.max(0, start), end: Math.max(start, Math.min(text.length, end)), category: String(signal.category ?? 'matched signal') };
+    })
+    .filter((range) => range.end > range.start)
+    .sort((left, right) => left.start - right.start);
+  if (ranges.length === 0) return <pre className="highlighted-content">{text}</pre>;
+  const fragments: React.ReactNode[] = [];
+  let cursor = 0;
+  ranges.forEach((range, index) => {
+    const start = Math.max(cursor, range.start);
+    if (start > cursor) fragments.push(<React.Fragment key={`text-${index}`}>{text.slice(cursor, start)}</React.Fragment>);
+    if (range.end > start) fragments.push(<mark className="malicious-span" key={`mark-${index}`} title={range.category}>{text.slice(start, range.end)}</mark>);
+    cursor = Math.max(cursor, range.end);
+  });
+  if (cursor < text.length) fragments.push(<React.Fragment key="text-tail">{text.slice(cursor)}</React.Fragment>);
+  return <pre className="highlighted-content">{fragments}</pre>;
+}
+
 function AuditSheet({ item, detail, loading, onClose }: { item: AuditItem; detail: Record<string, unknown> | null; loading: boolean; onClose: () => void }) {
   const reduceMotion = useReducedMotion();
   const data = detail ?? item as unknown as Record<string, unknown>;
-  return <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.16 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><motion.aside className="audit-sheet" role="dialog" aria-modal="true" aria-label="Audit event detail" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 330, damping: 34 }}><div className="sheet-header"><div><p className="eyebrow">AUDIT EVENT</p><h2>{titleCase(item.action || item.event_type)}</h2></div><button className="icon-button" type="button" aria-label="Close audit detail" onClick={onClose}><X size={18} aria-hidden="true" /></button></div><div className="sheet-verdict"><VerdictBadge value={item.decision} /><span>{formatDate(item.created_at)}</span></div>{loading ? <LoadingState label="Loading event detail" /> : <div className="sheet-content"><div className="detail-grid"><div><span className="metric-label">Event ID</span><code>{item.event_id}</code></div><div><span className="metric-label">Risk score</span><strong>{formatMetric(item.risk_score)}</strong></div><div><span className="metric-label">Source</span><strong>{item.source}</strong></div><div><span className="metric-label">Policy</span><strong>{item.policy}</strong></div></div><div className="detail-block"><span className="metric-label">Matched rules</span><pre>{JSON.stringify(data.matched_rules ?? data.matched_rules_json ?? [], null, 2)}</pre></div><div className="detail-block"><span className="metric-label">Payload</span><pre>{JSON.stringify(data.payload ?? data.payload_json ?? {}, null, 2)}</pre></div><div className="detail-block"><span className="metric-label">Provenance</span><pre>{JSON.stringify(data.provenance ?? data.provenance_json ?? [], null, 2)}</pre></div></div>}</motion.aside></motion.div>;
+  const payload = payloadRecord(data, 'payload');
+  const matchedRules = parseJsonValue(data.matched_rules ?? data.matched_rules_json);
+  const provenance = parseJsonValue(data.provenance ?? data.provenance_json);
+  const llm = payloadRecord(payload, 'llm');
+  const content = highlightedText(data);
+  const reason = Array.isArray(matchedRules) && isRecord(matchedRules[0]) ? String(matchedRules[0].reason ?? '') : '';
+  return (
+    <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.16 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <motion.aside layoutId={item.event_id} className="audit-sheet" role="dialog" aria-modal="true" aria-label="Audit event detail" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 330, damping: 34 }}>
+        <div className="sheet-header"><div><p className="eyebrow">AUDIT EVENT</p><h2>{titleCase(item.action || item.event_type)}</h2></div><button className="icon-button" type="button" aria-label="Close audit detail" onClick={onClose}><X size={18} aria-hidden="true" /></button></div>
+        <div className="sheet-verdict"><VerdictBadge value={item.decision} /><span>{formatDate(item.created_at)}</span></div>
+        {loading ? <LoadingState label="Loading event detail" /> : <div className="sheet-content">
+          <div className="detail-grid"><div><span className="metric-label">Event ID</span><code>{item.event_id}</code></div><div><span className="metric-label">Risk score</span><strong>{formatMetric(item.risk_score)}</strong></div><div><span className="metric-label">Source</span><strong>{item.source}</strong></div><div><span className="metric-label">Policy</span><strong>{item.policy}</strong></div></div>
+          <div className="detail-block"><span className="metric-label">Captured content / matched span</span><HighlightedContent text={content.text} signals={content.signals} /></div>
+          <div className="detail-block"><span className="metric-label">Signals and rule reason</span><pre>{JSON.stringify(matchedRules ?? [], null, 2)}</pre>{reason && <p className="detail-note">{reason}</p>}</div>
+          <div className="detail-block"><span className="metric-label">Classifier rationale</span><p className="detail-note">{typeof llm.rationale === 'string' && llm.rationale ? llm.rationale : 'No LLM rationale was recorded for this decision.'}</p></div>
+          <div className="detail-block"><span className="metric-label">Policy decision</span><div className="policy-decision-line"><VerdictBadge value={item.decision} /><span>{reason || 'Decision recorded by the active policy.'}</span></div></div>
+          <div className="detail-block"><span className="metric-label">Provenance</span><pre>{JSON.stringify(provenance ?? [], null, 2)}</pre></div>
+          <div className="detail-block"><span className="metric-label">Raw payload</span><pre>{JSON.stringify(payload, null, 2)}</pre></div>
+        </div>}
+      </motion.aside>
+    </motion.div>
+  );
 }
 
 export default App;
