@@ -589,6 +589,9 @@ function App() {
         stats={stats}
         audit={audit}
         benchmark={benchmark}
+        onRetryStats={loadStats}
+        onRetryAudit={loadAudit}
+        onRetryBenchmark={loadBenchmark}
         fixtures={fixtures}
         latestScan={latestScan}
         auditRiskPoints={auditRiskPoints}
@@ -771,10 +774,16 @@ function Overview({
   approvalAction,
   onRunBenchmark,
   benchmarkRunning,
+  onRetryStats,
+  onRetryAudit,
+  onRetryBenchmark,
 }: {
   stats: ResourceState<Stats>;
   audit: ResourceState<AuditItem[]>;
   benchmark: ResourceState<BenchmarkLatest>;
+  onRetryStats: () => void;
+  onRetryAudit: () => void;
+  onRetryBenchmark: () => void;
   fixtures: ResourceState<string[]>;
   latestScan: ScanResult | null;
   auditRiskPoints: number[];
@@ -838,7 +847,7 @@ function Overview({
 
       <section className="panel panel-stat-cluster grid-span-7">
         <PanelHeader eyebrow="GATEWAY TELEMETRY" title="Operational pulse" action={<span className="panel-live"><StatusDot tone="neutral" pulse />Live</span>} />
-        {stats.status === 'loading' && !data ? <LoadingState /> : stats.error ? <ErrorState message={stats.error} /> : (
+        {stats.status === 'loading' && !data ? <LoadingState /> : stats.error ? <ErrorState message={stats.error} onRetry={onRetryStats} /> : (
           <div className="metric-grid">
             <MetricTile label="Allow rate" value={formatPercent(data?.allow_rate)} detail="scan verdicts" icon={ShieldCheck} tone="neutral" />
             <MetricTile label="Blocked" value={formatMetric(data?.blocked_count)} detail="policy events" icon={ShieldX} tone="neutral" />
@@ -875,7 +884,7 @@ function Overview({
 
       <section className="panel panel-audit grid-span-7">
         <PanelHeader eyebrow="RECENT AUDIT" title="Decision stream" description="Persisted events from the gateway boundary." action={<button type="button" className="text-button" onClick={() => onOpenSection('audit')}>Open stream <ArrowUpRight size={13} aria-hidden="true" /></button>} />
-        {audit.status === 'loading' && !audit.data ? <LoadingState label="Reading audit stream" /> : audit.error ? <ErrorState message={audit.error} /> : auditItemsPreview(audit.data ?? [], onOpenAudit)}
+        {audit.status === 'loading' && !audit.data ? <LoadingState label="Reading audit stream" /> : audit.error ? <ErrorState message={audit.error} onRetry={onRetryAudit} /> : auditItemsPreview(audit.data ?? [], onOpenAudit)}
       </section>
 
       <section className="panel panel-approvals grid-span-5">
@@ -885,7 +894,7 @@ function Overview({
 
       <section className="panel panel-benchmark grid-span-12">
         <PanelHeader eyebrow="EVALUATION LAB" title="Benchmark report" description="Latest persisted run across the backend's benchmark corpus." action={<div className="panel-actions"><button type="button" className="text-button" onClick={() => onOpenSection('bench')}>Open report <ArrowUpRight size={13} aria-hidden="true" /></button><button type="button" className="button button-quiet" onClick={onRunBenchmark} disabled={benchmarkRunning}>{benchmarkRunning ? <Loader2 size={14} className="spin" aria-hidden="true" /> : <RefreshCw size={14} aria-hidden="true" />}Run benchmark</button></div>} />
-        <BenchmarkSummary state={benchmark} />
+        <BenchmarkSummary state={benchmark} onRetry={onRetryBenchmark} />
       </section>
 
       {firstError && <div className="data-footnote grid-span-12"><AlertCircle size={14} aria-hidden="true" />Some panels are waiting on the API. Existing telemetry remains visible where available.</div>}
@@ -984,10 +993,10 @@ function BenchmarkSection({ state, onRetry, onRun, running }: { state: ResourceS
   return <section className="section-stack"><div className="section-title-row"><div><p className="eyebrow">EVALUATION LAB / OFFLINE</p><h2>Benchmark report</h2><p>Measure deterministic coverage and latency against the persisted benchmark run.</p></div><button type="button" className="button button-primary" onClick={onRun} disabled={running}>{running ? <Loader2 size={15} className="spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}{running ? 'Running…' : 'Run benchmark'}</button></div><div className="panel panel-full">{state.status === 'loading' && !state.data ? <LoadingState label="Reading benchmark report" /> : state.error ? <ErrorState message={state.error} onRetry={onRetry} /> : !metrics ? <EmptyState label="No benchmark run persisted" detail="Run the backend benchmark to populate this report." /> : <BenchmarkReport metrics={metrics} run={state.data} />}</div></section>;
 }
 
-function BenchmarkSummary({ state }: { state: ResourceState<BenchmarkLatest> }) {
+function BenchmarkSummary({ state, onRetry }: { state: ResourceState<BenchmarkLatest>; onRetry: () => void }) {
   const metrics = state.data?.metrics;
   if (state.status === 'loading' && !state.data) return <LoadingState label="Reading benchmark report" />;
-  if (state.error) return <ErrorState message={state.error} />;
+  if (state.error) return <ErrorState message={state.error} onRetry={onRetry} />;
   if (!metrics) return <EmptyState label="No benchmark run persisted" detail="Run the benchmark to see coverage and technique recall." />;
   return <BenchmarkReport metrics={metrics} run={state.data} compact />;
 }
