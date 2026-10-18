@@ -88,7 +88,13 @@ const navItems: Array<{ id: Section; label: string; icon: typeof LayoutDashboard
   { id: 'bench', label: 'Benchmark', icon: BarChart3 },
 ];
 
-const stageNames = ['ingest', 'normalize', 'rules', 'score', 'decision'];
+const pipelineStages = [
+  { name: 'ingest', keys: ['ingest_ms', 'normalize_ms', 'normalization'] },
+  { name: 'rules', keys: ['rules_ms', 'rules'] },
+  { name: 'classifier', keys: ['classifier_ms', 'llm_ms', 'llm'] },
+  { name: 'policy', keys: ['policy_ms', 'score_ms', 'scoring'] },
+  { name: 'tool', keys: ['tool_ms', 'tool'] },
+] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -860,7 +866,7 @@ function Overview({
 
       <section className="panel panel-pipeline grid-span-7">
         <PanelHeader eyebrow="DECISION PIPELINE" title="Boundary depth" description="Latency planes from the latest scan response." action={<GitBranch size={17} aria-hidden="true" className="panel-mark" />} />
-        {latestScan ? <Pipeline scan={latestScan} /> : <EmptyState label="No pipeline response" detail="The stage breakdown will appear after a scan." />}
+        {latestScan ? <Pipeline scan={latestScan} events={sessionEvents} /> : <EmptyState label="No pipeline response" detail="The stage breakdown will appear after a scan." />}
       </section>
 
       <section className="panel panel-agent grid-span-5">
@@ -902,23 +908,24 @@ function Overview({
   );
 }
 
-function Pipeline({ scan }: { scan: ScanResult }) {
+function Pipeline({ scan, events }: { scan: ScanResult; events: AgentEvent[] }) {
   const latency = scan.stage_latency ?? scan.stage_latencies ?? scan.latency ?? {};
   const total = Number(latency.total_ms ?? latency.total ?? 0);
-  const stageValues = stageNames.map((stage) => {
-    const candidates = [stage, `${stage}_ms`, `${stage}Ms`];
-    const key = candidates.find((candidate) => typeof latency[candidate] === 'number');
-    return { name: stage, value: key ? latency[key] : undefined };
+  const stageValues = pipelineStages.map((stage) => {
+    const key = stage.keys.find((candidate) => typeof latency[candidate] === 'number');
+    return { name: stage.name, value: key ? latency[key] : undefined };
   });
   const hasValues = stageValues.some((stage) => stage.value !== undefined) || Object.keys(latency).length > 0;
   if (!hasValues) return <EmptyState label="No stage latency fields" detail="The API returned a scan without pipeline timing." />;
+  const flowActive = events.length > 0 && events[events.length - 1]?.type !== 'run_finished';
+  const packetIndex = scan.verdict === 'block' ? 3 : 4;
   return (
-    <div className="pipeline-wrap">
+    <div className="pipeline-wrap" aria-label="Ingest, rules, classifier, policy, and tool pipeline">
       <div className="pipeline-total"><span>Total path</span><strong>{formatMetric(total, ' ms')}</strong></div>
       <div className="pipeline-planes">
-        {stageValues.map((stage, index) => <div className="pipeline-plane" key={stage.name} style={{ '--plane-depth': `${index * 10}px` } as React.CSSProperties}><div className="plane-cap"><span>{titleCase(stage.name)}</span><strong>{formatMetric(stage.value, ' ms')}</strong></div><div className="plane-fill" /></div>)}
+        {stageValues.map((stage, index) => <div className={`pipeline-plane ${flowActive ? 'plane-live' : ''}`} key={stage.name} style={{ '--plane-depth': `${index * 10}px` } as React.CSSProperties}><div className="plane-cap"><span>{titleCase(stage.name)}</span><strong>{formatMetric(stage.value, ' ms')}</strong></div><div className="plane-fill" />{flowActive && index === packetIndex && <span className={`pipeline-packet ${scan.verdict === 'block' ? 'pipeline-packet-blocked' : 'pipeline-packet-allowed'}`} aria-label={scan.verdict === 'block' ? 'Packet stopped at policy' : 'Packet passed to tool'} />}</div>)}
       </div>
-      <div className="pipeline-foot"><span><span className="pipeline-line pipeline-line-cyan" />Deterministic rule path</span><span><span className="pipeline-line pipeline-line-muted" />Response fields: {Object.keys(latency).length ? 'available' : 'empty'}</span></div>
+      <div className="pipeline-foot"><span><span className="pipeline-line pipeline-line-cyan" />Live packet path</span><span><span className="pipeline-line pipeline-line-muted" />{scan.verdict === 'block' ? 'Stopped at policy' : 'Tool boundary ready'}</span></div>
     </div>
   );
 }
