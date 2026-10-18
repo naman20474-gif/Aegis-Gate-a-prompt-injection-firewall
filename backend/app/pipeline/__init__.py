@@ -1,10 +1,10 @@
 """Inbound evaluation pipeline exports."""
 from .normalize import InputLimitError, NormalizedInput, normalize_inbound
-from .rules import RuleEngine, RuleMatch
+from .rules import RuleEngine, RuleMatch, Signal
 from .scoring import score_risk
 
 __all__ = [
-    "NormalizedInput", "InputLimitError", "normalize_inbound", "RuleEngine", "RuleMatch",
+    "NormalizedInput", "InputLimitError", "normalize_inbound", "RuleEngine", "RuleMatch", "Signal",
     "score_risk", "LLMClient", "NullLLMClient", "OpenAICompatibleLLMClient",
     "build_llm_client", "EvaluationService", "EvaluationResult",
 ]
