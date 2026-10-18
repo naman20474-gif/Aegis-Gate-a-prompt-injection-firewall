@@ -43,3 +43,14 @@ def test_structured_formatter_is_json():
     payload = json.loads(JsonFormatter().format(record))
     assert payload["message"] == "hello"
     assert payload["request_id"] == "abc"
+
+
+def test_openai_compatible_env_names_configure_gpt6_provider(monkeypatch):
+    for key in ("AEGIS_LLM_ENABLED", "AEGIS_LLM_BASE_URL", "AEGIS_LLM_API_KEY", "AEGIS_LLM_MODEL"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("LLM_BASE_URL", "https://llm.invalid/v1")
+    monkeypatch.setenv("LLM_API_KEY", "test-key")
+    monkeypatch.setenv("LLM_MODEL", "GPT-6 Astra")
+    settings = Settings.from_env()
+    assert settings.llm_configured is True
+    assert settings.llm_model == "GPT-6 Astra"

@@ -45,6 +45,9 @@ class Settings:
     @classmethod
     def from_env(cls, **overrides: object) -> "Settings":
         origins = os.getenv("AEGIS_CORS_ORIGINS", "http://localhost:5173")
+        llm_base_url = os.getenv("AEGIS_LLM_BASE_URL", os.getenv("LLM_BASE_URL", ""))
+        llm_api_key = os.getenv("AEGIS_LLM_API_KEY", os.getenv("LLM_API_KEY", ""))
+        llm_enabled_env = os.getenv("AEGIS_LLM_ENABLED", os.getenv("LLM_ENABLED"))
         values: dict[str, object] = {
             "environment": os.getenv("AEGIS_ENV", "development"),
             "database_url": os.getenv("AEGIS_DB_URL", "sqlite:///./backend/aegis_gate.db"),
@@ -52,9 +55,9 @@ class Settings:
             "cors_origins": tuple(x.strip() for x in origins.split(",") if x.strip()),
             "max_body_bytes": _int(os.getenv("AEGIS_MAX_BODY_BYTES"), 204_800),
             "max_text_chars": _int(os.getenv("AEGIS_MAX_TEXT_CHARS"), 204_800),
-            "llm_enabled": _bool(os.getenv("AEGIS_LLM_ENABLED", os.getenv("LLM_ENABLED")), False),
-            "llm_base_url": os.getenv("AEGIS_LLM_BASE_URL", os.getenv("LLM_BASE_URL", "")),
-            "llm_api_key": os.getenv("AEGIS_LLM_API_KEY", os.getenv("LLM_API_KEY", "")),
+            "llm_enabled": _bool(llm_enabled_env, bool(llm_base_url and llm_api_key)),
+            "llm_base_url": llm_base_url,
+            "llm_api_key": llm_api_key,
             "llm_model": os.getenv("AEGIS_LLM_MODEL", os.getenv("LLM_MODEL", "GPT-6 Astra")),
             "llm_timeout_seconds": float(os.getenv("AEGIS_LLM_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "5"))),
             "llm_token_cap": _int(os.getenv("AEGIS_LLM_TOKEN_CAP", os.getenv("LLM_TOKEN_CAP")), 4096),
