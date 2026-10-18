@@ -272,6 +272,10 @@ class ToolPolicyService:
         if tool == "read_file":
             return {"content": read_fixture(str(args.get("path", args.get("name", ""))))}
         if tool == "fetch_page":
+            fixture_id = str(args.get("fixture_id", args.get("id", "")))
+            if fixture_id:
+                from .agent.tools import fetch_page
+                return fetch_page(fixture_id)
             return {"url": str(args.get("url", "")), "content": "fake local response", "network": False}
         if tool == "summarize":
             from .agent.tools import summarize

@@ -80,12 +80,19 @@ def calculate(expression: str) -> float | int:
     raise ValueError("calculation result out of range")
 
 
+def fetch_page(fixture_id: str) -> dict[str, Any]:
+    """Read a page fixture without making a network request."""
+    return {"fixture_id": fixture_id, "content": read_fixture(fixture_id), "network": False}
+
+
 def run_tool(name: str, args: dict[str, Any] | None = None) -> Any:
     args = args or {}
     if name == "list_fixtures":
         return list_fixtures()
-    if name == "read_fixture":
-        return read_fixture(str(args.get("name", "")))
+    if name in {"read_fixture", "read_file"}:
+        return read_fixture(str(args.get("name", args.get("path", ""))))
+    if name == "fetch_page":
+        return fetch_page(str(args.get("fixture_id", args.get("id", args.get("name", "")))))
     if name == "summarize":
         return summarize(str(args.get("text", "")))
     if name == "calculate":
