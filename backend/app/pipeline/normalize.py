@@ -57,6 +57,7 @@ class NormalizedInput:
             "fields": self.fields,
             "taints": self.taints,
             "provenance_count": len(self.provenance),
+            "provenance": [record.as_dict() for record in self.provenance],
             "hidden_signals": self.hidden_signals,
             "metadata": self.metadata,
         }

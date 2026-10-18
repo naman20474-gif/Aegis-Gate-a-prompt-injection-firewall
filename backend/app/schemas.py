@@ -139,6 +139,7 @@ class ScanResult(BaseModel):
     hidden_signals: list[dict[str, Any]] = Field(default_factory=list)
     hidden_signal_metadata: list[dict[str, Any]] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    provenance: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime
 
 

@@ -261,6 +261,7 @@ class ScanService:
             hidden_signals=normalized.hidden_signals,
             hidden_signal_metadata=normalized.hidden_signals,
             metadata={**normalized.metadata, "source_type": source, "source_id": source_id},
+            provenance=[record.as_dict() for record in normalized.provenance],
             created_at=datetime.now(timezone.utc),
         )
         if request.session_id:
