@@ -1,0 +1,23 @@
+name: default
+description: Balanced fail-closed policy for inbound content and local demo tools.
+thresholds:
+  review: 45
+  deny: 75
+blocked_taints:
+  - path_traversal
+  - unsafe_tool
+approval_taints:
+  - personal_data
+  - encoded_content
+protected_actions:
+  - agent_tool
+  - execute_tool
+rule_actions:
+  injection.ignore_instructions: deny
+  exfiltration.secrets: deny
+  filesystem.traversal: deny
+  tools.unsafe_name: deny
+  execution.dangerous_command: review
+  privacy.pii: review
+  encoding.obfuscated_payload: review
+  content.social_engineering: review

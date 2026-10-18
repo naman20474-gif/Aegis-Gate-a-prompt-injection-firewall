@@ -1,0 +1,26 @@
+name: strict
+description: Strict policy for sensitive or production-like traffic.
+thresholds:
+  review: 25
+  deny: 55
+blocked_taints:
+  - path_traversal
+  - unsafe_tool
+  - secret_candidate
+  - instruction_like
+approval_taints:
+  - personal_data
+  - encoded_content
+  - external_link
+protected_actions:
+  - agent_tool
+  - execute_tool
+rule_actions:
+  injection.ignore_instructions: deny
+  exfiltration.secrets: deny
+  filesystem.traversal: deny
+  tools.unsafe_name: deny
+  execution.dangerous_command: deny
+  privacy.pii: review
+  encoding.obfuscated_payload: review
+  content.social_engineering: review

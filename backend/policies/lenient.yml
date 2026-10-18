@@ -1,0 +1,21 @@
+name: lenient
+description: Low-friction policy for non-production demo traffic.
+thresholds:
+  review: 65
+  deny: 90
+blocked_taints:
+  - path_traversal
+  - unsafe_tool
+approval_taints: []
+protected_actions:
+  - agent_tool
+  - execute_tool
+rule_actions:
+  injection.ignore_instructions: deny
+  exfiltration.secrets: deny
+  filesystem.traversal: deny
+  tools.unsafe_name: deny
+  execution.dangerous_command: review
+  privacy.pii: review
+  encoding.obfuscated_payload: review
+  content.social_engineering: review
