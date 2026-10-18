@@ -182,13 +182,14 @@ class RuleEngine:
         if (
             int(obfuscation_metadata.get("zero_width_count", 0)) > 0
             or int(obfuscation_metadata.get("bidi_control_count", 0)) > 0
+            or bool(obfuscation_metadata.get("homoglyph_mixing", False))
             or obfuscation_metadata.get("decoded_segments")
         ) and not any(match.category == "obfuscation" for match in matches):
             matches.append(RuleMatch(
                 rule_id="encoding.control_or_encoded_payload",
                 category="obfuscation", severity="medium", action="review",
                 reason="The input contains characters or segments commonly used to hide instructions.",
-                evidence="zero-width/bidi controls or encoded segment detected",
+                evidence="zero-width/bidi controls, homoglyph mixing, or encoded segment detected",
                 taints=("encoded_content",), span=(0, min(len(text), 1)),
             ))
         return matches

@@ -159,6 +159,19 @@ def _taints_for(path: str, text: str, source: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(taints))
 
 
+def _has_homoglyph_mixing(value: str) -> bool:
+    """Detect likely Latin plus Greek/Cyrillic confusable mixing without rewriting it."""
+    has_latin = False
+    has_confusable_script = False
+    for character in value:
+        if not character.isalpha():
+            continue
+        name = unicodedata.name(character, "")
+        has_latin = has_latin or "LATIN" in name
+        has_confusable_script = has_confusable_script or "CYRILLIC" in name or "GREEK" in name
+    return has_latin and has_confusable_script
+
+
 def _safe_preview(text: str, limit: int = 240) -> str:
     # Keep audit records useful without copying a whole inbound secret.
     preview = text[:limit]
@@ -213,6 +226,7 @@ def _inspect_text(value: str) -> tuple[str, dict[str, Any]]:
         "html_stripped_count": 0,
         "hidden_signals": [],
         "decoded_segments": [],
+        "homoglyph_mixing": _has_homoglyph_mixing(original),
     }
     working = "".join(character for character in original if character not in _ZERO_WIDTH and character not in _BIDI)
     working = _CONTROL.sub("", working)
@@ -278,6 +292,7 @@ def normalize_inbound(
         "control_count": 0,
         "html_stripped_count": 0,
         "decoded_segments": [],
+        "homoglyph_mixing": False,
     }
 
     if isinstance(payload, str):
@@ -303,6 +318,7 @@ def normalize_inbound(
             aggregate_metadata[key] += int(info.get(key, 0))
         hidden_signals.extend(info.get("hidden_signals", []))
         aggregate_metadata["decoded_segments"].extend(info.get("decoded_segments", []))
+        aggregate_metadata["homoglyph_mixing"] = aggregate_metadata["homoglyph_mixing"] or bool(info.get("homoglyph_mixing", False))
         lowered_path = path.rsplit(".", 1)[-1].lower()
         if isinstance(value, (str, int, float, bool)) or lowered_path in _TEXT_KEYS:
             fragment = f"{path}: {text}" if path != "$.text" else text
@@ -340,6 +356,7 @@ def normalize_inbound(
             ))
             hidden_signals.extend(info.get("hidden_signals", []))
             aggregate_metadata["decoded_segments"].extend(info.get("decoded_segments", []))
+            aggregate_metadata["homoglyph_mixing"] = aggregate_metadata["homoglyph_mixing"] or bool(info.get("homoglyph_mixing", False))
             aggregate_metadata["nfkc_changed"] = aggregate_metadata["nfkc_changed"] or bool(info.get("nfkc_changed", False))
             for key_name in ("zero_width_count", "bidi_control_count", "control_count", "html_stripped_count"):
                 aggregate_metadata[key_name] += int(info.get(key_name, 0))
@@ -355,7 +372,7 @@ def normalize_inbound(
     taints = list(dict.fromkeys(taint for record in records for taint in record.taints))
     if hidden_signals:
         taints.append("hidden_content")
-    if aggregate_metadata["decoded_segments"]:
+    if aggregate_metadata["decoded_segments"] or aggregate_metadata["homoglyph_mixing"]:
         taints.append("encoded_content")
     taints = list(dict.fromkeys(taints))
     if not records:
