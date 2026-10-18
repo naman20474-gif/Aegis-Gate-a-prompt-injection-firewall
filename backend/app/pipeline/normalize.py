@@ -24,6 +24,7 @@ class ProvenanceRecord:
     preview: str
     sha256: str
     taints: tuple[str, ...] = ()
+    trust: str = "untrusted"
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -33,6 +34,8 @@ class ProvenanceRecord:
             "preview": self.preview,
             "sha256": self.sha256,
             "taints": list(self.taints),
+            "trust": self.trust,
+            "trusted": self.trust == "trusted",
         }
 
 
@@ -121,10 +124,14 @@ def _walk(value: Any, path: str = "$") -> Iterable[tuple[str, Any]]:
             yield from _walk(child, child_path)
 
 
+def _trust_for_source(source: str) -> str:
+    return "trusted" if source.lower() in {"user", "system", "internal"} else "untrusted"
+
+
 def _taints_for(path: str, text: str, source: str) -> tuple[str, ...]:
     lowered = f"{path} {text}".lower()
     taints = ["external_input"]
-    if source not in {"internal", "fixture", "benchmark"}:
+    if _trust_for_source(source) == "untrusted":
         taints.append("untrusted_source")
     if _SECRET_HINTS.search(text):
         taints.append("secret_candidate")
@@ -307,6 +314,7 @@ def normalize_inbound(
                 preview=_safe_preview(text),
                 sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
                 taints=taints,
+                trust=_trust_for_source(source),
             )
             records.append(record)
             fields[path] = text if len(text) <= 500 else text[:500] + "…"

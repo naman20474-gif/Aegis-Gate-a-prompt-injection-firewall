@@ -1,1 +1,1 @@
-Review test SSN 123-45-6789 only with approval.
+A routine review checklist: confirm that local reports contain no personal data before an operator approves a demo action.
