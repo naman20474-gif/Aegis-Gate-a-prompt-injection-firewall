@@ -312,6 +312,11 @@ h1 { margin-bottom: 8px; color: var(--text); font-size: clamp(28px, 3vw, 43px); 
 .approval-copy small { overflow: hidden; color: var(--faint); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .approval-copy code { overflow: hidden; color: var(--faint); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .approval-actions { display: flex; gap: 5px; }
+.approval-countdown { display: inline-flex; align-items: center; gap: 4px; color: var(--verdict-approval); font-family: 'JetBrains Mono', monospace; font-size: 9px; white-space: nowrap; }
+.approval-countdown svg { width: 25px; height: 25px; transform: rotate(-90deg); }
+.countdown-track, .countdown-value { fill: none; stroke-width: 2.2; }
+.countdown-track { stroke: rgba(124, 196, 255, 0.16); }
+.countdown-value { stroke: var(--verdict-approval); stroke-linecap: round; transition: stroke-dashoffset 800ms linear; }
 .button-allow:hover { border-color: rgba(127, 225, 174, 0.3); color: var(--verdict-allow); }
 .button-deny:hover { border-color: rgba(229, 138, 136, 0.3); color: var(--verdict-block); }
 .approval-resolved { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; }

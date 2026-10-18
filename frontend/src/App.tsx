@@ -983,9 +983,42 @@ function ApprovalsSection({ state, items, pending, onRetry, onDecision, actionId
   return <section className="section-stack"><div className="section-title-row"><div><p className="eyebrow">HUMAN GATE / ACTION REQUIRED</p><h2>Approvals</h2><p>Resolve tool actions that crossed the declarative policy boundary.</p></div><span className="section-chip"><ClipboardCheck size={14} aria-hidden="true" />{pending.length} pending</span></div><div className="panel panel-full">{state.status === 'loading' && !state.data ? <LoadingState label="Reading approvals" /> : state.error ? <ErrorState message={state.error} onRetry={onRetry} /> : items.length === 0 ? <EmptyState label="Approval queue is empty" detail="Approval requests will appear when policy asks for an operator." /> : <div className="approval-full-list"><ApprovalList items={items} onDecision={onDecision} actionId={actionId} /></div>}</div></section>;
 }
 
+function ApprovalCountdown({ approvalId, onExpire }: { approvalId: string; onExpire: () => void }) {
+  const [seconds, setSeconds] = React.useState(60);
+  const expireRef = React.useRef(onExpire);
+  expireRef.current = onExpire;
+
+  React.useEffect(() => {
+    setSeconds(60);
+    const timer = window.setInterval(() => {
+      setSeconds((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          expireRef.current();
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [approvalId]);
+
+  const circumference = 2 * Math.PI * 15;
+  const offset = circumference * (1 - seconds / 60);
+  return (
+    <span className="approval-countdown" aria-label={`${seconds} seconds until this approval auto-denies`}>
+      <svg viewBox="0 0 36 36" role="img" aria-hidden="true">
+        <circle className="countdown-track" cx="18" cy="18" r="15" />
+        <circle className="countdown-value" cx="18" cy="18" r="15" style={{ strokeDasharray: circumference, strokeDashoffset: offset }} />
+      </svg>
+      <span>{seconds}s</span>
+    </span>
+  );
+}
+
 function ApprovalList({ items, onDecision, actionId, compact = false }: { items: Approval[]; onDecision: (approval: Approval, decision: 'approve' | 'deny') => void; actionId: string | null; compact?: boolean }) {
   if (items.length === 0) return <EmptyState label="No pending approvals" detail="The queue is clear." />;
-  return <div className={`approval-list ${compact ? 'approval-list-compact' : ''}`}>{items.map((approval) => <div className="approval-row" key={approval.approval_id}><div className="approval-icon"><Bell size={15} aria-hidden="true" /></div><div className="approval-copy"><div className="approval-heading"><strong>{approval.reason || 'Operator decision requested'}</strong><VerdictBadge value={approval.status} compact /></div><small>{approval.requested_by} · {formatDate(approval.requested_at)}</small><code>{approval.approval_id}</code></div>{approval.status === 'pending' ? <div className="approval-actions"><button className="button button-quiet button-allow" type="button" onClick={() => onDecision(approval, 'approve')} disabled={actionId !== null}>{actionId === `${approval.approval_id}:approve` ? <Loader2 size={13} className="spin" aria-hidden="true" /> : <Check size={13} aria-hidden="true" />}Approve</button><button className="button button-quiet button-deny" type="button" onClick={() => onDecision(approval, 'deny')} disabled={actionId !== null}>{actionId === `${approval.approval_id}:deny` ? <Loader2 size={13} className="spin" aria-hidden="true" /> : <X size={13} aria-hidden="true" />}Deny</button></div> : <span className="approval-resolved">{titleCase(approval.status)}</span>}</div>)}</div>;
+  return <div className={`approval-list ${compact ? 'approval-list-compact' : ''}`}>{items.map((approval) => <div className="approval-row" key={approval.approval_id}><div className="approval-icon"><Bell size={15} aria-hidden="true" /></div><div className="approval-copy"><div className="approval-heading"><strong>{approval.reason || 'Operator decision requested'}</strong><VerdictBadge value={approval.status} compact /></div><small>{approval.requested_by} · {formatDate(approval.requested_at)}</small><code>{approval.approval_id}</code></div>{approval.status === 'pending' ? <><ApprovalCountdown approvalId={approval.approval_id} onExpire={() => onDecision(approval, 'deny')} /><div className="approval-actions"><button className="button button-quiet button-allow" type="button" onClick={() => onDecision(approval, 'approve')} disabled={actionId !== null}>{actionId === `${approval.approval_id}:approve` ? <Loader2 size={13} className="spin" aria-hidden="true" /> : <Check size={13} aria-hidden="true" />}Approve</button><button className="button button-quiet button-deny" type="button" onClick={() => onDecision(approval, 'deny')} disabled={actionId !== null}>{actionId === `${approval.approval_id}:deny` ? <Loader2 size={13} className="spin" aria-hidden="true" /> : <X size={13} aria-hidden="true" />}Deny</button></div></> : <span className="approval-resolved">{titleCase(approval.status)}</span>}</div>)}</div>;
 }
 
 function BenchmarkSection({ state, onRetry, onRun, running }: { state: ResourceState<BenchmarkLatest>; onRetry: () => void; onRun: () => void; running: boolean }) {
