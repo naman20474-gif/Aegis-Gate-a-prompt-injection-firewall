@@ -50,7 +50,7 @@ cp .env.example .env
 make test
 ```
 
-The default `.env.example` keeps the LLM disabled, so tests and the deterministic firewall run without a provider or network. To enable the optional classifier, set `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` (the example model is `GPT-6 Astra`) in an untracked `.env` file. The equivalent `AEGIS_*` variables remain supported for deployment-specific names.
+The default `.env.example` keeps the LLM disabled, so tests and the deterministic firewall run without a provider or network. To enable the optional classifier, set `LLM_ENABLED=true`, `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` (the example model is `GPT-6 Astra`) in an untracked `.env` file. The equivalent `AEGIS_*` variables remain supported for deployment-specific names.
 
 ## Run locally
 
