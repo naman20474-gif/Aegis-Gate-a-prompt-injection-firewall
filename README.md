@@ -95,8 +95,8 @@ Latest verified local benchmark run:
 | precision | 1.00 |
 | recall | 1.00 |
 | false-positive rate | 0.00 |
-| p50 scan latency | 0.991 ms |
-| p95 scan latency | 1.957 ms |
+| p50 scan latency | 1.026 ms |
+| p95 scan latency | 2.306 ms |
 | tokens per scan | 0.0 |
 
 Per-category recall from that run was 1.00 for each category:
