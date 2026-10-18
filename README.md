@@ -95,10 +95,24 @@ Latest verified local benchmark run:
 | precision | 1.00 |
 | recall | 1.00 |
 | false-positive rate | 0.00 |
-| p50 scan latency | measured by runner |
-| p95 scan latency | measured by runner |
+| p50 scan latency | 0.991 ms |
+| p95 scan latency | 1.957 ms |
+| tokens per scan | 0.0 |
 
-Per-category recall is exposed in the API and dashboard for all eight categories: instruction override, role hijack, exfiltration, tool coercion, hidden content, obfuscation, delimiter spoofing, and urgency/authority.
+Per-category recall from that run was 1.00 for each category:
+
+| technique | recall |
+| --- | ---: |
+| instruction override | 1.00 |
+| role hijack | 1.00 |
+| exfiltration | 1.00 |
+| tool coercion | 1.00 |
+| hidden content | 1.00 |
+| obfuscation | 1.00 |
+| delimiter spoofing | 1.00 |
+| urgency / authority | 1.00 |
+
+The same per-category recall is exposed by the API and dashboard; latency and token values are measured again on each run.
 
 ## API surface
 
